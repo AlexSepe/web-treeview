@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<widget id="truechange.webtreeview.WebTreeview" pluginWidget="true" needsEntityContext="true"
+    offlineCapable="true"
+    supportedPlatform="Web"
+    xmlns="http://www.mendix.com/widget/1.0/" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.mendix.com/widget/1.0/ ../node_modules/mendix/custom_widget.xsd">
+    <name>Web Treeview</name>
+    <description>TrueChange wrapper for react-arborium treeview</description>
+    <icon />
+    <properties>
+        <propertyGroup caption="General">
+
+            <!-- <property key="rootDataSource" type="datasource" isList="true" required="true">
+                <caption>Data source</caption>
+                <description />
+            </property> -->
+            <!-- 
+            <property key="refParent2" type="attribute" dataSource="rootDataSource">
+                <caption>Parent reference attr</caption>
+                <description>Parent reference</description>
+                <attributeTypes>
+                    <attributeType name="AutoNumber" />
+                    <attributeType name="Integer" />
+                    <attributeType name="Long" />
+                </attributeTypes>
+            </property> -->
+
+
+            <property key="rootDs" type="datasource" isList="true">
+                <caption>Root Datasource</caption>
+                <description />
+            </property>
+
+            <property key="nodeID" type="attribute" dataSource="rootDs" required="true">
+                <caption>Node ID</caption>
+                <description>Node ID</description>
+                <attributeTypes>
+                    <attributeType name="AutoNumber" />
+                    <attributeType name="Integer" />
+                    <attributeType name="Long" />
+                    <attributeType name="String" />
+                </attributeTypes>
+            </property> 
+
+            <property key="parentID" type="attribute" dataSource="rootDs" required="true"> 
+                <caption>Parent ID</caption>
+                <description>Parent ID</description>
+                <attributeTypes>
+                    <attributeType name="AutoNumber" />
+                    <attributeType name="Integer" />
+                    <attributeType name="Long" />
+                    <attributeType name="String" />
+                </attributeTypes>
+            </property> 
+
+            <property key="isFolder" type="attribute" dataSource="rootDs" required="true">
+                <caption>Is Folder</caption>
+                <description>Is Folder</description>
+                <attributeTypes>
+                    <attributeType name="Boolean" />
+                </attributeTypes>
+            </property> 
+
+             <property key="content" type="widgets" required="true" dataSource="rootDs">
+                <caption>Content</caption>
+                <description>Widgets using data source</description>
+            </property>            
+
+            <property key="selection" type="selection" dataSource="rootDs"
+                defaultValue="Single">
+                <caption>Selection</caption>
+                <description />
+                <selectionTypes>                    
+                    <selectionType name="Single" />
+                    <selectionType name="Multi" />
+                </selectionTypes>
+            </property>
+        </propertyGroup>
+        <propertyGroup caption="Events">
+            <property key="onChangeDatabaseEvent" type="action" required="false">
+                <caption>On Selection change</caption>
+                <description />
+            </property>
+        </propertyGroup>
+    </properties>
+</widget>

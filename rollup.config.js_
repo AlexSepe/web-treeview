@@ -1,0 +1,9 @@
+
+export default args => {
+    const result = args.configDefaultConfig;
+    result.forEach(config => {
+        config.treeshake = false;        
+    });
+    result.treeshake = false;
+    return result;
+};
