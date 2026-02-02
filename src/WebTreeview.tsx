@@ -2,65 +2,89 @@ import { Component, Fragment, ReactNode, createElement } from "react";
 import { WebTreeviewContainerProps } from "../typings/WebTreeviewProps";
 import "./ui/WebTreeview.css";
 import { ObjectItem } from "mendix";
-import { Tree, TreeItemDataloader } from "./components/HeadlessTree";
+import { TreeItem, TreeItemDataloader, TreeHost } from "./components/HeadlessTree";
+import { TreeInstance } from "@headless-tree/core";
+
+type MapTreeItem = Record<string, TreeItem>;
 
 interface WebTreeviewState {
-    cachedItems: ObjectItem[];
+    cachedItems: MapTreeItem;
+    treeInstance?: TreeInstance<TreeItem>;
     loading: boolean;
-    rootItems: string[];
 }
 
 export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreeviewState> {
     constructor(props: WebTreeviewContainerProps) {
         super(props);
-        this.state = { cachedItems: [], rootItems: [], loading: true };
+        // static root initial state
+        const dataMap: MapTreeItem = {};
+        dataMap.root = {
+            id: "root",
+            uuid: "root",            
+            parentId: null,
+            isFolder: true,
+            children: [],
+            mxObject: undefined
+        };
+
+        this.state = {
+            cachedItems: dataMap,
+            treeInstance: undefined,
+            loading: true
+        };
     }
 
-    componentDidMount() {
-        //this.ensureSelection();
-        this.cacheItems();
+    componentDidMount(): void {
+        // this.cacheItems();
     }
 
-    componentDidUpdate(prevProps: WebTreeviewContainerProps) {
-        if (prevProps.rootDs !== this.props.rootDs) {
+    componentDidUpdate(prevProps: WebTreeviewContainerProps): void {
+        // console.info(
+        //     " component DID update: Datasource Changed:" +
+        //         (prevProps.rootDs !== this.props.rootDs) +
+        //         " - DataSource disponivel? " +
+        //         this.props.rootDs?.status
+        // );
+        if (prevProps.rootDs !== this.props.rootDs && this.props.rootDs.status === "available") {
             this.cacheItems();
         }
-        // if (prevProps.selection !== this.props.selection) {
-        //     this.ensureSelection();
-        // }
     }
 
-    cacheItems() {
-        const sortedItems = this.getItemsSorted();
-        this.setState({ cachedItems: sortedItems });
-        console.info("cached items length -> " + sortedItems.length);
-
-        // const rootItems = this.getRootItems(sortedItems).map(item => item.id.toString());
-        // const isEqual =
-        //     rootItems.length === this.state.rootItems.length &&
-        //     rootItems.every((value, index) => value === this.state.rootItems[index]);
-
-        // if (!isEqual) {
-             this.setState({ loading: true });
-            //console.info(`--------------- reload root items: ${rootItems.length}------------------`);
-            setTimeout(() => {
-                this.setState({ loading: false });
-            }, 50);
-        //}
+    cacheItems(): void {
+        const sortedItems = this.getMxItemsSorted();
+        const mappedItemsNew = this.buildDataMap(sortedItems);
+        // console.info("cacheItems:: cached items length -> " + sortedItems.length);
+        this.setState({ cachedItems: mappedItemsNew, loading: false }, () => this.refreshTreeview());
     }
 
-    getItemsSorted() {
-        const { rootDs, parentID, isFolder } = this.props;
+    refreshTreeview(): void {
+        const { treeInstance } = this.state;
+        console.info("RefreshTreeview:: items on refresh treeView:: " + Object.keys(this.state.cachedItems).length);
+        treeInstance?.rebuildTree();
+    }
+
+    // get items from datasource and map to TreeItem
+    getMxItemsSorted(): TreeItem[] {
+        const { rootDs, parentID, nodeID, captionText, isFolder } = this.props;
         if (rootDs?.items) {
-            const sortedItems = rootDs?.items.sort((a, b) => {
-                const byID = parentID
-                    .get(a)
-                    .value?.toString()
-                    .localeCompare(parentID.get(b).value?.toString() || "");
-                if (byID !== 0) return byID ?? 0;
-                // folders first
-                const nb = isFolder.get(b).value ? 0 : 1;
-                const na = isFolder.get(a).value ? 0 : 1;
+            const treeItemsMap: TreeItem[] = rootDs?.items.map(item => {
+                return {
+                    id: nodeID.get(item).value?.toString() || "",
+                    parentId: parentID.get(item).value?.toString() || null,
+                    isFolder: isFolder?.get(item).value || false,
+                    caption: () => captionText.get(item).value?.toString() || "",
+                    mxObject: item,
+                    uuid: item.id
+                };
+            });
+            const sortedItems = treeItemsMap.sort((a, b) => {
+                const byID = a.parentId?.toString().localeCompare(a.parentId?.toString() || "");
+                if (byID !== 0) {
+                    return byID ?? 0;
+                }
+                // folders last
+                const nb = b.isFolder ? 0 : 1;
+                const na = a.isFolder ? 0 : 1;
                 const result = nb - na;
                 return result;
             }); // optional: sort items by id or any other criteria
@@ -69,62 +93,61 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
         return [];
     }
 
-    getItems() {
+    // build a map of items by id and set children
+    buildDataMap(mxItems: TreeItem[]): MapTreeItem {
+        const dataMap: MapTreeItem = {};
+        // static root
+        dataMap.root = {
+            id: "root",
+            parentId: null,
+            isFolder: true,
+            children: [],
+            mxObject: undefined,
+            uuid: "root",
+        };
+        mxItems.forEach(item => {
+            dataMap[item.id] = item;
+        });
+        mxItems.forEach(item => {
+            if (item.parentId) {
+                const parentItem = dataMap[item.parentId];
+                if (parentItem) {
+                    if (!parentItem.children) {
+                        parentItem.children = [];
+                    }
+                    parentItem.children.push(item);
+                    parentItem.isFolder = true;
+                }
+            } else {
+                // add to root
+                const rootItem = dataMap.root;
+                if (rootItem) {
+                    if (!rootItem.children) {
+                        rootItem.children = [];
+                    }
+                    rootItem.children.push(item);
+                }
+            }
+        });
+
+        const dataMapRemappedIds: MapTreeItem = {};
+        dataMapRemappedIds.root = dataMap.root;
+        mxItems.forEach(item => {
+            if (item.mxObject?.id) {
+                dataMapRemappedIds[item.mxObject.id] = dataMap[item.id];
+            }
+        });
+        return dataMapRemappedIds;
+    }
+
+    getItemsFromCache(): MapTreeItem {
         // const { rootDs } = this.props;
         // return rootDs?.items ?? []
         return this.state.cachedItems;
     }
 
-    getRootItems(items?: ObjectItem[]) {
-        const { parentID } = this.props;
-        const cachedItems = items ?? this.getItems();
-
-        // raiz = itens sem parentID
-        return cachedItems.filter(item => {
-            const parentValue = parentID.get(item).value;
-            return !parentValue; // vazio = raiz
-        });
-    }
-    getRootItemsChildrenIDs() {
-        const rootItems = this.getRootItems();
-        const { nodeID } = this.props;
-        const childrenIDs = rootItems.map(item => {
-            const rootNodeID = nodeID.get(item).value?.toString() || "";
-            return rootNodeID;
-        });
-        return childrenIDs;
-    }
-
-    getChildItems(parent: ObjectItem) {
-        const { parentID, nodeID } = this.props;
-        //const { cachedItems } = this.state;
-        const cachedItems = this.getItems();
-
-        const nodeIDValue = nodeID.get(parent).value?.toString();
-        // filhos = itens cujo parentID == nodeID do pai
-        const childItems = cachedItems.filter(item => {
-            const childParentID = parentID.get(item).value?.toString();
-            const equals = childParentID === nodeIDValue;
-            return equals;
-        });
-        //console.info("Found children count -> " + childItems.length);
-        return childItems;
-    }
-
-    //LOADER..........
-    findItemById(id: string): ObjectItem | null {
-        const cachedItems = this.getItems();
-        const { nodeID } = this.props;
-
-        const foundItem = cachedItems.find(item => {
-            const itemNodeID = nodeID.get(item).value?.toString();
-            return itemNodeID === id;
-        });
-        return foundItem || null;
-    }
-
-    selectItem(firstItem: ObjectItem) {
-        const { selection, onChangeDatabaseEvent } = this.props;        
+    selectItem(firstItem: ObjectItem): void {
+        const { selection, onChangeDatabaseEvent } = this.props;
         if (selection.type === "Single") {
             selection.setSelection(firstItem);
         } else {
@@ -134,80 +157,74 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
         console.info("selection set -> " + firstItem.id);
     }
 
+    getMxItemFromTreeItem(item: TreeItem): ObjectItem | undefined {
+        if (!item || !this.props.rootDs.items) {
+            console.info("getMxItemFromTreeItem ITEM NULL ou DS Not ready!!");
+            return undefined;
+        }
+        const cachedItems = this.getItemsFromCache();
+        const itemRefreshed = cachedItems[item.uuid];
+        if (!itemRefreshed) {
+            console.info("getMxItemFromTreeItem CACHE not found for -> ", item);
+            return undefined;
+        }
+        if (itemRefreshed.mxObject) {
+            return itemRefreshed.mxObject;
+        }
+        // todo atualizar o cache se necessario
+        const mxItem = this.props.rootDs.items.find(i => {
+            const found = i.id.toString() === itemRefreshed.mxObject?.id.toString();
+            return found;
+        });
+        return mxItem;
+    }
+
+    // LOADER..........
     getDataloader(): TreeItemDataloader {
         const dataLoader: TreeItemDataloader = {
             getItem: (id: string) => {
-                const { nodeID, isFolder } = this.props;
-                //console.info("getDataloader Getting item for id -> " + id);
-                if (id === "root") {
-                    return {
-                        name: "root",
-                        isFolder: true,
-                        children: this.getRootItemsChildrenIDs()
-                    };
-                }
-                // find item by id
-                const item = this.findItemById(id);
-
-                if (item) {
-                    const isFolderValue: boolean = isFolder.get(item).value ?? false;
-                    const itemName = "item_" + id; //nameAttr.get(item).value?.toString() || "Unnamed";
-                    // check if item has children
-                    const children = this.getChildItems(item);
-                    const childrenIDs = children.map(child => {
-                        const childNodeID = nodeID.get(child).value?.toString() || "";
-                        return childNodeID;
-                    });
-                    return {
-                        name: itemName,
-                        isFolder: isFolderValue,
-                        children: childrenIDs.length > 0 ? childrenIDs : undefined,
-                        getContent: () => this.props.content.get(item)
-                    };
-                } else {
-                    //throw new Error("Item not found for id: " + id);
-                    return {
-                        name: "item_not_found_" + id,
-                        isFolder: false
-                    };
-                }
+                const items = this.getItemsFromCache();
+                const treeItem = items[id];
+                //console.debug("dataLoader getItem -" + id, treeItem);
+                return treeItem ?? { id: "<loadin>", uuid: id };
             },
             getChildren: (id: string) => {
-                const cachedItems = this.getItems();
-                const { nodeID } = this.props;
-                //console.info("getDataloader Getting children for id -> " + id);
-                if (id === "root") {
-                    const children = this.getRootItems().map(rootItem => {
-                        const rootNodeID = nodeID.get(rootItem).value?.toString() || "";
-                        return rootNodeID;
-                    });
-                    //console.info("root response -> " + children);
-                    return children;
-                }
-                // find item by id
-                const parentItem = cachedItems.find(item => {
-                    const itemNodeID = nodeID.get(item).value?.toString();
-                    return itemNodeID === id;
-                });
-                if (parentItem) {
-                    const children = this.getChildItems(parentItem);
-                    const childrenIDs = children.map(child => {
-                        const childNodeID = nodeID.get(child).value?.toString() || "";
-                        return childNodeID;
-                    });
-                    return childrenIDs;
-                } else {
-                    return [];
+                const items = this.getItemsFromCache();
+                const treeItem = items[id];
+                const childwithdata = treeItem?.children?.map(child => child.uuid) || [];
+                //console.debug("dataLoader getChildren -" + id, treeItem.children);
+                return childwithdata;
+            },
+
+            onitemChange: (itemsId: string[]) => {
+                if (this.props.selection.type === "Single") {
+                    if (!itemsId || itemsId.length === 0) {
+                        //this.selectItem(undefined as any);
+                        console.info("Item changed to null");
+                        return;
+                    }
+                    const firstItemId = itemsId[0];
+                    const items = this.getItemsFromCache();
+                    const treeItem = items[firstItemId];
+                    const item = this.getMxItemFromTreeItem(treeItem);
+                    if (item) {
+                        this.selectItem(item);
+                        console.info("Item changed found: " + treeItem.id);
+                    } else {
+                        this.selectItem(null as any);
+                        console.info("Item changed NOT found: " + firstItemId);
+                    }
                 }
             },
-            onitemChange: (itemId: string) => {
-                const item = this.findItemById(itemId);
-                if (item) {
-                    this.selectItem(item);
-                    console.info("Item changed found: " + itemId);
-                } else {
-                    this.selectItem(null as any);
-                    console.info("Item changed NOT found: " + itemId);
+
+            getContent: (item: TreeItem): ReactNode => {
+                // console.info("getting content for :", item);
+                if (!item) {
+                    return " <<item empty>> ";
+                }
+                if (this.props.content) {
+                    const mxItem = this.getMxItemFromTreeItem(item);
+                    return mxItem && this.props.content.get(mxItem);
                 }
             }
         };
@@ -215,40 +232,20 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
     }
 
     render(): ReactNode {
-        const { selection } = this.props;
-        //const rootItems = this.getRootItems();
-
         return (
             <Fragment>
-                {/* <div>
-                    {rootItems.map(item => (
-                        <div key={item.id} style={{ marginLeft: "20px", border: "1px solid black", padding: "5px" }}>
-                            {content.get(item)}
-                            <div>Root Item: {item.id}</div>
-
-                            {this.getChildItems(item).map(child => (
-                                <div
-                                    key={child.id}
-                                    style={{ marginLeft: "40px", border: "1px solid blue", padding: "5px" }}
-                                >
-                                    {content.get(child)}
-                                    <div>Child Item: {child.id}</div>
-                                </div>
-                            ))}
-                        </div>
-                    ))}
-                </div> */}
-                {/* {this.props.rootDs.status === "loading" && <div>Loading...</div>}
-                {this.props.rootDs.status === "available" && (
-                    <Tree singleSelection={selection.type === "Single"} dataLoader={this.getDataloader()} />
-                )} */}
-
-                {this.state.loading && <div className="loadingTreeview"></div>}
-                {!this.state.loading && (
-                    <div>                        
-                        <Tree singleSelection={selection.type === "Single"} dataLoader={this.getDataloader()} />
-                    </div>
-                )}
+                <div className={this.props.class} style={this.props.style}>
+                    <TreeHost
+                        singleSelection={this.props.selection.type === "Single"}
+                        dataLoader={this.getDataloader()}
+                        onReady={inst => {
+                            if (this.state.treeInstance !== inst) {
+                                console.debug("treeHost Ready with newInstance");
+                                this.setState({ treeInstance: inst });
+                            }
+                        }}
+                    />
+                </div>
             </Fragment>
         );
     }

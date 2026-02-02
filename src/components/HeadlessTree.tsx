@@ -1,142 +1,166 @@
-import { createElement, Fragment, ReactNode } from "react";
+import { createElement, Fragment, ReactNode, useEffect, useState } from "react";
 import "./HeadlessTree.css";
 import {
     syncDataLoaderFeature,
     dragAndDropFeature,
     hotkeysCoreFeature,
     keyboardDragAndDropFeature,
-    selectionFeature,
-    searchFeature,
-    expandAllFeature
+    selectionFeature,    
+    expandAllFeature,
+    TreeInstance,
+    ItemInstance
 } from "@headless-tree/core";
-import { selectionFeatureSingle } from "./selectionSingle/feature";
 import { AssistiveTreeDescription, useTree } from "@headless-tree/react";
 import cn from "classnames";
-//import { DemoItem, asyncDataLoader, data } from "./data";
+
+import { ObjectItem } from "mendix";
+import { selectionFeatureSingle } from "../features/selectionSingle/feature";
+import { searchFeatureCustom } from "../features/search/feature";
 
 export type TreeItem = {
-    name: string;
-    children?: string[];
+    uuid: string;
+    id: string;
+    caption?: () => string;
+    parentId: string | null;
+    children?: TreeItem[];
     isFolder: boolean;
-    getContent?(): ReactNode;
+    mxObject: ObjectItem | undefined;
 };
 
 export type TreeItemDataloader = {
     getItem(itemId: string): TreeItem;
     getChildren(itemId: string): string[];
-    onitemChange(itemId: string): void;
+    onitemChange(itemId: string[]): void;
+    getContent(item: TreeItem): ReactNode;
 };
 
-export function Tree(props: { singleSelection: boolean; dataLoader: TreeItemDataloader }) {
+export function TreeHost(props: {
+    singleSelection: boolean;
+    dataLoader: TreeItemDataloader;
+    onReady?: (tree: TreeInstance<TreeItem>) => void;
+}): ReactNode {
+    const { singleSelection, dataLoader, onReady } = props;
+    function doCreateForeingDragObject(items: Array<ItemInstance<TreeItem>>): any {
+        const itemData = items[0].getItemData();
+        const dataobj = {
+            nodeId: itemData.id,
+            objectId: itemData.uuid
+        };
+        return {
+            format: "application/json",
+            data: JSON.stringify(dataobj)
+        };
+    }
+
+    const [selectedItems, setSelectedItems] = useState<string[]>([]);
+    // Runs every time `selected` changes
+    useEffect(() => {        
+        if (!selectedItems) {
+            return;
+        }
+        console.info("Selected items: " + selectedItems);
+        //dataLoader.onitemChange(selectedItems);        
+    }, [selectedItems]); 
+    
     const tree = useTree<TreeItem>({
-        initialState: {
-            //expandedItems: ["fruit"],
-            //selectedItems: ["banana", "orange"],
-        },
-        setSelectedItems: (items: any[] | ((prevItems: any[]) => any[]), _tree?: any) => {
-            const itemsArray = typeof items === "function" ? items([]) : items;
-            console.info("Selected items: " + itemsArray.join(", "));
-            if (itemsArray.length > 0) props.dataLoader.onitemChange(itemsArray[0]);
-            else props.dataLoader.onitemChange("");
-        },
+        initialState: {},
+        state: { selectedItems },
+        setSelectedItems: setSelectedItems,        
         rootItemId: "root",
-        getItemName: item => item.getItemData()?.name,
-        isItemFolder: item => item.getItemData()?.isFolder, // !!item.getItemData()?.children,
+        getItemName: item => item.getItemData()?.uuid,
+        isItemFolder: item => item.getItemData()?.isFolder,
+        isSearchMatchingItem: (search, item) => {
+            if (search.length <= 0 && !item.getItemData().caption) {
+                return false;
+            }
+            const itemcaption = item.getItemData().caption?.() || ""
+            return itemcaption.toLowerCase().includes(search.toLowerCase());
+        },
         canReorder: false,
-        // onDrop: createOnDropHandler((item, newChildren) => {
-        //   data[item.getId()].children = newChildren;
-        // }),
         indent: 20,
-        dataLoader: props.dataLoader,
+        dataLoader,
         canDrag: _item => true,
         canDrop(_items, _target) {
             return false;
         },
-        onPrimaryAction: item => {
-            console.info(`Primary action on ${item.getItemName()} - IsFolder: ${item.getItemData()?.isFolder}`);
-            //props.dataLoader.onitemChange(item.getId());
-            //force refresh if folder to reload children
-            //TODO Lazy load
-            // if (item.getItemData()?.isFolder && item.getItemData()?.children === undefined) {
-            //     setTimeout(() => {
-            //         console.info(`Invalidate children for ${item.getItemName()}`);
-            //         item.invalidateItemData(false);
-            //         item.invalidateChildrenIds(false);
-            //     }, 500);
-            // }
-        },
-        createForeignDragObject: items => ({
-            format: "text/plain",
-            data: items.map(item => item.getId()).join(",")
-        }),
+        // onPrimaryAction: item => {
+        //     console.info(`Primary action on ${item.getItemName()} - IsFolder: ${item.getItemData()?.isFolder}`);
+        // },
+        createForeignDragObject: doCreateForeingDragObject,
         features: [
             syncDataLoaderFeature,
-            props.singleSelection ? selectionFeatureSingle : selectionFeature,
-            //selectionFeatureSingle,
+            singleSelection ? selectionFeatureSingle : selectionFeature,
             hotkeysCoreFeature,
             dragAndDropFeature,
             keyboardDragAndDropFeature,
-            searchFeature,
+            searchFeatureCustom,
             expandAllFeature
         ]
     });
 
+    useEffect(() => {
+        onReady?.(tree);
+    }, [tree, onReady]);
+
+    return <Tree tree={tree} dataLoader={dataLoader} />;
+}
+
+export function Tree(props: { tree: TreeInstance<TreeItem>; dataLoader: TreeItemDataloader }): ReactNode {
+    const { tree } = props;
     return (
         <Fragment>
-            {tree.isSearchOpen() && (
-                <div className="searchboxX form-control">
-                    <input {...tree.getSearchInputElementProps()} />
-                    <span>({tree.getSearchMatchingItems().length} matches)</span>
-                </div>
-            )}
-            {!tree.isSearchOpen() && (
-                <div>
-                    <button className="mx-button" onClick={() => tree.openSearch()}>
-                        Search
-                    </button>
-                    <button className="mx-button" title="Expand All" onClick={() => tree.expandAll()}>
-                        [+]
-                    </button>
-                    <button className="mx-button" title="Collapse All" onClick={() => tree.collapseAll()}>
-                        [-]
-                    </button>
-                </div>
-            )}
-            <div>
-                <div {...tree.getContainerProps()} className="tree">
-                    <AssistiveTreeDescription tree={tree} />
-                    {tree.getItems().map(item => (
-                        <div className="outeritem" key={item.getId()}>
-                            <button
-                                key={item.getId()}
-                                {...item.getProps()}
-                                style={{ paddingLeft: `${item.getItemMeta().level * 20}px` }}
-                            >
-                                <div
-                                    className={cn("treeitem", {
-                                        focused: item.isFocused(),
-                                        expanded: item.isExpanded(),
-                                        selected: item.isSelected(),
-                                        folder: item.isFolder(),
-                                        drop: item.isDragTarget(),
-                                        searchmatch: item.isMatchingSearch()
-                                    })}
-                                >
-                                    {/* {item.getItemName()} */}
-                                    {item.getItemData()?.getContent && item.getItemData()?.getContent!()}
-                                </div>
-                            </button>
-                            {/* <button onClick={() => item.invalidateChildrenIds(false)}>[i1]</button> */}
+            <div className="treeviewMain">
+                <div className="treeviewControls">
+                    {tree.isSearchOpen() && (
+                        <div className="searchboxX form-control">
+                            <input {...tree.getSearchInputElementProps()} />
+                            <span>({tree.getSearchMatchingItems().length} matches)</span>
                         </div>
-                    ))}
-                    <div style={tree.getDragLineStyle()} className="dragline" />
+                    )}
+                    {!tree.isSearchOpen() && (
+                        <div>
+                            <button className="mx-button" onClick={() => tree.openSearch()}>
+                                Search
+                            </button>
+                            <button className="mx-button" title="Expand All" onClick={() => tree.expandAll()}>
+                                [+]
+                            </button>
+                            <button className="mx-button" title="Collapse All" onClick={() => tree.collapseAll()}>
+                                [-]
+                            </button>
+                        </div>
+                    )}
+                </div>
+                <div className="treeviewTree">
+                    <div {...tree.getContainerProps()} className="tree">
+                        <AssistiveTreeDescription tree={tree} />
+                        {tree.getItems().map(item => (
+                            <div className="outeritem" key={item.getId()}>
+                                <button
+                                    key={item.getId()}
+                                    {...item.getProps()}
+                                    style={{ paddingLeft: `${item.getItemMeta().level * 20}px` }}
+                                >
+                                    <div
+                                        className={cn("treeitem", {
+                                            focused: item.isFocused(),
+                                            expanded: item.isExpanded(),
+                                            selected: item.isSelected(),
+                                            folder: item.isFolder(),
+                                            drop: item.isDragTarget(),
+                                            searchmatch: item.isMatchingSearch()
+                                        })}
+                                    >
+                                        {item.isLoading() && " (loading...)"}
+                                        {props.dataLoader.getContent(item.getItemData()) || item.getItemData().caption?.() || "<no caption>"}
+                                    </div>
+                                </button>
+                            </div>
+                        ))}
+                        <div style={tree.getDragLineStyle()} className="dragline" />
+                    </div>
                 </div>
             </div>
-            {/* <div className="actionbar">
-                <button className="actionbtn" onClick={() => tree.openSearch()}>
-                    Search items
-                </button>
-            </div> */}
         </Fragment>
     );
 }

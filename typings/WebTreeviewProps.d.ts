@@ -4,7 +4,7 @@
  * @author Mendix Widgets Framework Team
  */
 import { ComponentType, CSSProperties, ReactNode } from "react";
-import { ActionValue, ListValue, ListAttributeValue, ListWidgetValue, SelectionSingleValue, SelectionMultiValue } from "mendix";
+import { ActionValue, ListValue, ListAttributeValue, ListExpressionValue, ListWidgetValue, SelectionSingleValue, SelectionMultiValue } from "mendix";
 import { Big } from "big.js";
 
 export interface WebTreeviewContainerProps {
@@ -15,8 +15,9 @@ export interface WebTreeviewContainerProps {
     rootDs: ListValue;
     nodeID: ListAttributeValue<Big | string>;
     parentID: ListAttributeValue<Big | string>;
-    isFolder: ListAttributeValue<boolean>;
-    content: ListWidgetValue;
+    captionText: ListExpressionValue<string>;
+    isFolder?: ListExpressionValue<boolean>;
+    content?: ListWidgetValue;
     selection: SelectionSingleValue | SelectionMultiValue;
     onChangeDatabaseEvent?: ActionValue;
 }
@@ -35,6 +36,7 @@ export interface WebTreeviewPreviewProps {
     rootDs: {} | { caption: string } | { type: string } | null;
     nodeID: string;
     parentID: string;
+    captionText: string;
     isFolder: string;
     content: { widgetCount: number; renderer: ComponentType<{ children: ReactNode; caption?: string }> };
     selection: "Single" | "Multi";

@@ -9,25 +9,8 @@
     <icon />
     <properties>
         <propertyGroup caption="General">
-
-            <!-- <property key="rootDataSource" type="datasource" isList="true" required="true">
-                <caption>Data source</caption>
-                <description />
-            </property> -->
-            <!-- 
-            <property key="refParent2" type="attribute" dataSource="rootDataSource">
-                <caption>Parent reference attr</caption>
-                <description>Parent reference</description>
-                <attributeTypes>
-                    <attributeType name="AutoNumber" />
-                    <attributeType name="Integer" />
-                    <attributeType name="Long" />
-                </attributeTypes>
-            </property> -->
-
-
             <property key="rootDs" type="datasource" isList="true">
-                <caption>Root Datasource</caption>
+                <caption>Datasource</caption>
                 <description />
             </property>
 
@@ -53,15 +36,18 @@
                 </attributeTypes>
             </property> 
 
-            <property key="isFolder" type="attribute" dataSource="rootDs" required="true">
-                <caption>Is Folder</caption>
-                <description>Is Folder</description>
-                <attributeTypes>
-                    <attributeType name="Boolean" />
-                </attributeTypes>
+            <property key="captionText" type="textTemplate" dataSource="rootDs" required="true"> 
+                <caption>Caption</caption>
+                <description>Caption</description>
             </property> 
 
-             <property key="content" type="widgets" required="true" dataSource="rootDs">
+            <property key="isFolder" type="expression" dataSource="rootDs" required="false">
+                <caption>Is Folder</caption>
+                <description>Indicates if its a folder (Lazy loaded required)</description>
+                <returnType type="Boolean" />
+            </property> 
+
+             <property key="content" type="widgets" required="false" dataSource="rootDs">
                 <caption>Content</caption>
                 <description>Widgets using data source</description>
             </property>            
