@@ -5,7 +5,7 @@ import {
     dragAndDropFeature,
     hotkeysCoreFeature,
     keyboardDragAndDropFeature,
-    selectionFeature,    
+    selectionFeature,
     expandAllFeature,
     TreeInstance,
     ItemInstance
@@ -30,16 +30,17 @@ export type TreeItem = {
 export type TreeItemDataloader = {
     getItem(itemId: string): TreeItem;
     getChildren(itemId: string): string[];
-    onitemChange(itemId: string[]): void;
+    onSelectionChange(itemId: string[]): void;
     getContent(item: TreeItem): ReactNode;
 };
 
 export function TreeHost(props: {
     singleSelection: boolean;
     dataLoader: TreeItemDataloader;
+    showControllers: boolean;
     onReady?: (tree: TreeInstance<TreeItem>) => void;
 }): ReactNode {
-    const { singleSelection, dataLoader, onReady } = props;
+    const { singleSelection, dataLoader, showControllers, onReady } = props;
     function doCreateForeingDragObject(items: Array<ItemInstance<TreeItem>>): any {
         const itemData = items[0].getItemData();
         const dataobj = {
@@ -54,18 +55,18 @@ export function TreeHost(props: {
 
     const [selectedItems, setSelectedItems] = useState<string[]>([]);
     // Runs every time `selected` changes
-    useEffect(() => {        
+    useEffect(() => {
         if (!selectedItems) {
             return;
         }
-        console.info("Selected items: " + selectedItems);
-        //dataLoader.onitemChange(selectedItems);        
-    }, [selectedItems]); 
-    
+        //console.info("Selected items: " + selectedItems);
+        dataLoader.onSelectionChange(selectedItems);
+    }, [selectedItems]);
+
     const tree = useTree<TreeItem>({
         initialState: {},
         state: { selectedItems },
-        setSelectedItems: setSelectedItems,        
+        setSelectedItems: setSelectedItems,
         rootItemId: "root",
         getItemName: item => item.getItemData()?.uuid,
         isItemFolder: item => item.getItemData()?.isFolder,
@@ -73,7 +74,7 @@ export function TreeHost(props: {
             if (search.length <= 0 && !item.getItemData().caption) {
                 return false;
             }
-            const itemcaption = item.getItemData().caption?.() || ""
+            const itemcaption = item.getItemData().caption?.() || "";
             return itemcaption.toLowerCase().includes(search.toLowerCase());
         },
         canReorder: false,
@@ -102,30 +103,30 @@ export function TreeHost(props: {
         onReady?.(tree);
     }, [tree, onReady]);
 
-    return <Tree tree={tree} dataLoader={dataLoader} />;
+    return <Tree tree={tree} dataLoader={dataLoader} showControllers={showControllers} />;
 }
 
-export function Tree(props: { tree: TreeInstance<TreeItem>; dataLoader: TreeItemDataloader }): ReactNode {
+export function Tree(props: { tree: TreeInstance<TreeItem>; dataLoader: TreeItemDataloader; showControllers: boolean }): ReactNode {
     const { tree } = props;
     return (
         <Fragment>
-            <div className="treeviewMain">
+            <div className="treeviewMain form-control">
                 <div className="treeviewControls">
                     {tree.isSearchOpen() && (
-                        <div className="searchboxX form-control">
-                            <input {...tree.getSearchInputElementProps()} />
-                            <span>({tree.getSearchMatchingItems().length} matches)</span>
+                        <div className="searchbox">
+                            <input {...tree.getSearchInputElementProps()} className={`form-control ${tree.getSearchInputElementProps()?.className || ""}`} />
+                            <span className="textmatchingitems"> ({tree.getSearchMatchingItems().length} matches)</span>
                         </div>
                     )}
-                    {!tree.isSearchOpen() && (
+                    {props.showControllers && !tree.isSearchOpen() && (
                         <div>
-                            <button className="mx-button" onClick={() => tree.openSearch()}>
+                            <button className="btn mx-button" onClick={() => tree.openSearch()}>
                                 Search
                             </button>
-                            <button className="mx-button" title="Expand All" onClick={() => tree.expandAll()}>
+                            <button className="btn mx-button" title="Expand All" onClick={() => tree.expandAll()}>
                                 [+]
                             </button>
-                            <button className="mx-button" title="Collapse All" onClick={() => tree.collapseAll()}>
+                            <button className="btn mx-button" title="Collapse All" onClick={() => tree.collapseAll()}>
                                 [-]
                             </button>
                         </div>
@@ -152,7 +153,11 @@ export function Tree(props: { tree: TreeInstance<TreeItem>; dataLoader: TreeItem
                                         })}
                                     >
                                         {item.isLoading() && " (loading...)"}
-                                        {props.dataLoader.getContent(item.getItemData()) || item.getItemData().caption?.() || "<no caption>"}
+                                        <div className="treeitem-content">
+                                            {props.dataLoader.getContent(item.getItemData()) ||
+                                                item.getItemData().caption?.() ||
+                                                "<no caption>"}
+                                        </div>
                                     </div>
                                 </button>
                             </div>

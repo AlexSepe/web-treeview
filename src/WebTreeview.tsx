@@ -146,15 +146,17 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
         return this.state.cachedItems;
     }
 
-    selectItem(firstItem: ObjectItem): void {
+    selectItem(firstItem: ObjectItem | undefined): void {
         const { selection, onChangeDatabaseEvent } = this.props;
-        if (selection.type === "Single") {
+        if (selection.type === "Single") {            
             selection.setSelection(firstItem);
+            console.debug("selection set -> " + firstItem?.id);
         } else {
-            selection.setSelection([firstItem]);
+            const selectionItems = firstItem ? [firstItem] : [];
+            selection.setSelection(selectionItems);
+            console.debug("selection set -> " + selectionItems.length + " items");
         }
-        onChangeDatabaseEvent?.execute();
-        console.info("selection set -> " + firstItem.id);
+        onChangeDatabaseEvent?.execute();        
     }
 
     getMxItemFromTreeItem(item: TreeItem): ObjectItem | undefined {
@@ -162,21 +164,22 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
             console.info("getMxItemFromTreeItem ITEM NULL ou DS Not ready!!");
             return undefined;
         }
-        const cachedItems = this.getItemsFromCache();
-        const itemRefreshed = cachedItems[item.uuid];
-        if (!itemRefreshed) {
-            console.info("getMxItemFromTreeItem CACHE not found for -> ", item);
-            return undefined;
-        }
-        if (itemRefreshed.mxObject) {
-            return itemRefreshed.mxObject;
-        }
-        // todo atualizar o cache se necessario
-        const mxItem = this.props.rootDs.items.find(i => {
-            const found = i.id.toString() === itemRefreshed.mxObject?.id.toString();
-            return found;
-        });
-        return mxItem;
+        return item.mxObject;
+        // const cachedItems = this.getItemsFromCache();
+        // const itemRefreshed = cachedItems[item.uuid];
+        // if (!itemRefreshed) {
+        //     console.info("getMxItemFromTreeItem CACHE not found for -> ", item);
+        //     return undefined;
+        // }
+        // if (itemRefreshed.mxObject) {
+        //     return itemRefreshed.mxObject;
+        // }
+        // // todo atualizar o cache se necessario
+        // const mxItem = this.props.rootDs.items.find(i => {
+        //     const found = i.id.toString() === itemRefreshed.mxObject?.id.toString();
+        //     return found;
+        // });
+        // return mxItem;
     }
 
     // LOADER..........
@@ -196,13 +199,14 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
                 return childwithdata;
             },
 
-            onitemChange: (itemsId: string[]) => {
+            onSelectionChange: (itemsId: string[]) => {
                 if (this.props.selection.type === "Single") {
                     if (!itemsId || itemsId.length === 0) {
                         //this.selectItem(undefined as any);
-                        console.info("Item changed to null");
+                        console.info("Selection changed to null");
                         return;
                     }
+                    //TODO multi selection support
                     const firstItemId = itemsId[0];
                     const items = this.getItemsFromCache();
                     const treeItem = items[firstItemId];
@@ -211,7 +215,7 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
                         this.selectItem(item);
                         console.info("Item changed found: " + treeItem.id);
                     } else {
-                        this.selectItem(null as any);
+                        this.selectItem(undefined);
                         console.info("Item changed NOT found: " + firstItemId);
                     }
                 }
@@ -219,13 +223,15 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
 
             getContent: (item: TreeItem): ReactNode => {
                 // console.info("getting content for :", item);
-                if (!item) {
-                    return " <<item empty>> ";
+                if (!item || this.props.content === undefined) {
+                    return undefined;
                 }
-                if (this.props.content) {
-                    const mxItem = this.getMxItemFromTreeItem(item);
-                    return mxItem && this.props.content.get(mxItem);
+                const mxItem = this.getMxItemFromTreeItem(item);
+                if (!mxItem) {
+                    return undefined;
                 }
+                const content = this.props.content.get(mxItem);                
+                return content;
             }
         };
         return dataLoader;
@@ -238,6 +244,7 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
                     <TreeHost
                         singleSelection={this.props.selection.type === "Single"}
                         dataLoader={this.getDataloader()}
+                        showControllers={this.props.showControllers}
                         onReady={inst => {
                             if (this.state.treeInstance !== inst) {
                                 console.debug("treeHost Ready with newInstance");

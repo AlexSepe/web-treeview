@@ -7,7 +7,7 @@
     <name>Web Treeview</name>
     <description>TrueChange wrapper for react-arborium treeview</description>
     <icon />
-    <properties>
+    <properties>        
         <propertyGroup caption="General">
             <property key="rootDs" type="datasource" isList="true">
                 <caption>Datasource</caption>
@@ -67,6 +67,13 @@
                 <caption>On Selection change</caption>
                 <description />
             </property>
+        </propertyGroup>
+
+        <propertyGroup caption="Customization">
+            <property key="showControllers" type="boolean" defaultValue="true">
+                <caption>Show controllers</caption>
+                <description>Shows search, expand and collapse buttons in the controller bar</description>                                
+            </property> 
         </propertyGroup>
     </properties>
 </widget>

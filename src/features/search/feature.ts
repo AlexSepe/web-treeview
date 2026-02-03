@@ -43,7 +43,7 @@ export const searchFeatureCustom: FeatureImplementation = {
     closeSearch: ({ tree }) => {
       tree.setSearch(null);
       tree.getConfig().onCloseSearch?.();
-      tree.updateDomFocus();
+      //tree.updateDomFocus();
     },
     isSearchOpen: ({ tree }) => tree.getState().search !== null,
     getSearchValue: ({ tree }) => tree.getState().search || "",
@@ -88,6 +88,7 @@ export const searchFeatureCustom: FeatureImplementation = {
       isEnabled: (tree) => !tree.isSearchOpen(),
       handler: (e, tree) => {
         e.stopPropagation();
+        tree.expandAll?.();
         tree.openSearch(e.key);
       },
     },
@@ -99,6 +100,7 @@ export const searchFeatureCustom: FeatureImplementation = {
       isEnabled: (tree) => tree.isSearchOpen(),
       handler: (_e, tree) => {
         tree.closeSearch();
+        tree.updateDomFocus();
       },
     },
 
@@ -106,10 +108,13 @@ export const searchFeatureCustom: FeatureImplementation = {
       hotkey: "Enter",
       allowWhenInputFocused: true,
       isEnabled: (tree) => tree.isSearchOpen(),
-      handler: (_e, tree) => {
+      handler: (e, tree) => {
         const focusedItem = tree.getFocusedItem();
+        e.stopPropagation();
         tree.closeSearch();
         if (focusedItem){
+          focusedItem.setFocused();
+          tree.updateDomFocus();
           tree.setSelectedItems([focusedItem.getId()]);
         }
       },

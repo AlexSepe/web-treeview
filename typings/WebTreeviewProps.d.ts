@@ -20,6 +20,7 @@ export interface WebTreeviewContainerProps {
     content?: ListWidgetValue;
     selection: SelectionSingleValue | SelectionMultiValue;
     onChangeDatabaseEvent?: ActionValue;
+    showControllers: boolean;
 }
 
 export interface WebTreeviewPreviewProps {
@@ -41,4 +42,5 @@ export interface WebTreeviewPreviewProps {
     content: { widgetCount: number; renderer: ComponentType<{ children: ReactNode; caption?: string }> };
     selection: "Single" | "Multi";
     onChangeDatabaseEvent: {} | null;
+    showControllers: boolean;
 }

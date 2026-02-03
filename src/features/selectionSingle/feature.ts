@@ -157,12 +157,12 @@ export const selectionFeatureSingle: FeatureImplementation = {
                 tree.updateDomFocus();
             }
         },
-        selectAll: {
-            hotkey: "Control+KeyA",
-            preventDefault: true,
-            handler: (_e, tree) => {
-                tree.setSelectedItems(tree.getItems().map(item => item.getId()));
-            }
-        }
+        // selectAll: {
+        //     hotkey: "Control+KeyA",
+        //     preventDefault: true,
+        //     handler: (_e, tree) => {
+        //         tree.setSelectedItems(tree.getItems().map(item => item.getId()));
+        //     }
+        // }
     }
 };
