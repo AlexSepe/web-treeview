@@ -32,6 +32,7 @@ export type TreeItemDataloader = {
     getChildren(itemId: string): string[];
     onSelectionChange(itemId: string[]): void;
     getContent(item: TreeItem): ReactNode;
+    getRootItemId(): string;
 };
 
 export function TreeHost(props: {
@@ -67,7 +68,7 @@ export function TreeHost(props: {
         initialState: {},
         state: { selectedItems },
         setSelectedItems: setSelectedItems,
-        rootItemId: "root",
+        rootItemId: dataLoader.getRootItemId(),
         getItemName: item => item.getItemData()?.uuid,
         isItemFolder: item => item.getItemData()?.isFolder,
         isSearchMatchingItem: (search, item) => {

@@ -74,6 +74,10 @@
                 <caption>Show controllers</caption>
                 <description>Shows search, expand and collapse buttons in the controller bar</description>                                
             </property> 
+            <property key="openExpanded" type="boolean" defaultValue="false">
+                <caption>Open expanded</caption>
+                <description>Expands all nodes on load</description>                                
+            </property> 
         </propertyGroup>
     </properties>
 </widget>

@@ -26,12 +26,13 @@
   },
   "devDependencies": {
     "@mendix/pluggable-widgets-tools": "^10.15.0",
-    "@types/big.js": "^6.0.2"
+    "@types/big.js": "^6.0.2",
+    "@types/uuid": "^10.0.0"
   },
   "dependencies": {
-    "classnames": "^2.2.6",
     "@headless-tree/core": "latest",
-    "@headless-tree/react": "latest"
+    "@headless-tree/react": "latest",
+    "classnames": "^2.2.6"
   },
   "resolutions": {
     "react": "^18.2.0",

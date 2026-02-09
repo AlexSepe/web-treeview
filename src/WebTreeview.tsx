@@ -4,6 +4,7 @@ import "./ui/WebTreeview.css";
 import { ObjectItem } from "mendix";
 import { TreeItem, TreeItemDataloader, TreeHost } from "./components/HeadlessTree";
 import { TreeInstance } from "@headless-tree/core";
+import { v4 as uuidv4 } from "uuid";
 
 type MapTreeItem = Record<string, TreeItem>;
 
@@ -11,16 +12,18 @@ interface WebTreeviewState {
     cachedItems: MapTreeItem;
     treeInstance?: TreeInstance<TreeItem>;
     loading: boolean;
+    rootId: string;
 }
 
 export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreeviewState> {
     constructor(props: WebTreeviewContainerProps) {
         super(props);
         // static root initial state
+        const rootId = "root_" + uuidv4();
         const dataMap: MapTreeItem = {};
-        dataMap.root = {
-            id: "root",
-            uuid: "root",            
+        dataMap[rootId]= {
+            id: rootId,
+            uuid: rootId,            
             parentId: null,
             isFolder: true,
             children: [],
@@ -30,7 +33,8 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
         this.state = {
             cachedItems: dataMap,
             treeInstance: undefined,
-            loading: true
+            loading: true,
+            rootId: rootId
         };
     }
 
@@ -61,6 +65,9 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
         const { treeInstance } = this.state;
         console.info("RefreshTreeview:: items on refresh treeView:: " + Object.keys(this.state.cachedItems).length);
         treeInstance?.rebuildTree();
+        if (this.props.openExpanded) {
+            treeInstance?.expandAll();
+        }
     }
 
     // get items from datasource and map to TreeItem
@@ -96,14 +103,15 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
     // build a map of items by id and set children
     buildDataMap(mxItems: TreeItem[]): MapTreeItem {
         const dataMap: MapTreeItem = {};
+        const { rootId } = this.state;
         // static root
-        dataMap.root = {
-            id: "root",
+        dataMap[rootId] = {
+            id: rootId,
             parentId: null,
             isFolder: true,
             children: [],
             mxObject: undefined,
-            uuid: "root",
+            uuid: rootId,
         };
         mxItems.forEach(item => {
             dataMap[item.id] = item;
@@ -120,7 +128,7 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
                 }
             } else {
                 // add to root
-                const rootItem = dataMap.root;
+                const rootItem = dataMap[rootId];
                 if (rootItem) {
                     if (!rootItem.children) {
                         rootItem.children = [];
@@ -131,7 +139,7 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
         });
 
         const dataMapRemappedIds: MapTreeItem = {};
-        dataMapRemappedIds.root = dataMap.root;
+        dataMapRemappedIds[rootId] = dataMap[rootId];
         mxItems.forEach(item => {
             if (item.mxObject?.id) {
                 dataMapRemappedIds[item.mxObject.id] = dataMap[item.id];
@@ -185,11 +193,14 @@ export class WebTreeview extends Component<WebTreeviewContainerProps, WebTreevie
     // LOADER..........
     getDataloader(): TreeItemDataloader {
         const dataLoader: TreeItemDataloader = {
+            getRootItemId: () => {
+                return this.state.rootId;
+            },
             getItem: (id: string) => {
                 const items = this.getItemsFromCache();
                 const treeItem = items[id];
                 //console.debug("dataLoader getItem -" + id, treeItem);
-                return treeItem ?? { id: "<loadin>", uuid: id };
+                return treeItem ?? { id: "<loading>", uuid: id };
             },
             getChildren: (id: string) => {
                 const items = this.getItemsFromCache();

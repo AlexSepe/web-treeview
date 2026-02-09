@@ -21,6 +21,7 @@ export interface WebTreeviewContainerProps {
     selection: SelectionSingleValue | SelectionMultiValue;
     onChangeDatabaseEvent?: ActionValue;
     showControllers: boolean;
+    openExpanded: boolean;
 }
 
 export interface WebTreeviewPreviewProps {
@@ -43,4 +44,5 @@ export interface WebTreeviewPreviewProps {
     selection: "Single" | "Multi";
     onChangeDatabaseEvent: {} | null;
     showControllers: boolean;
+    openExpanded: boolean;
 }
